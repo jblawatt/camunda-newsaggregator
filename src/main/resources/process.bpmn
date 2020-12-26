@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="4.4.0">
+  <bpmn:process id="newsaggregator" name="newsaggregator" isExecutable="true">
+    <bpmn:startEvent id="StartEventProcessStarted" name="Process&#10;started">
+      <bpmn:outgoing>SequenceFlow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="SequenceFlow1" sourceRef="StartEventProcessStarted" targetRef="load-feed" />
+    <bpmn:serviceTask id="load-feed" name="Load RSS Feed" camunda:type="external" camunda:topic="load-feedurl">
+      <bpmn:incoming>SequenceFlow1</bpmn:incoming>
+      <bpmn:outgoing>Flow_0g2rxdt</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:subProcess id="handle-item-subprocess">
+      <bpmn:incoming>Flow_0g2rxdt</bpmn:incoming>
+      <bpmn:multiInstanceLoopCharacteristics camunda:collection="entryList" camunda:elementVariable="entry" />
+      <bpmn:sequenceFlow id="Flow_1nhb7rw" sourceRef="handle-entry" targetRef="Gateway_1on0lu4" />
+      <bpmn:sequenceFlow id="Flow_1ar9rvn" sourceRef="Gateway_1on0lu4" targetRef="insert-message">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${entryIsNew}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_0jkcnhw" sourceRef="Gateway_1on0lu4" targetRef="update-message">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${entryIsUpdated}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_1ge13k6" sourceRef="Gateway_1on0lu4" targetRef="Event_1bkc9ba">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${entryIsUnchanged}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:exclusiveGateway id="Gateway_1on0lu4">
+        <bpmn:incoming>Flow_1nhb7rw</bpmn:incoming>
+        <bpmn:outgoing>Flow_1ar9rvn</bpmn:outgoing>
+        <bpmn:outgoing>Flow_0jkcnhw</bpmn:outgoing>
+        <bpmn:outgoing>Flow_1ge13k6</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      <bpmn:endEvent id="Event_0fd5osq" name="Ende">
+        <bpmn:incoming>Flow_0atjlqx</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:endEvent id="Event_1bkc9ba" name="Ende">
+        <bpmn:incoming>Flow_1ge13k6</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:serviceTask id="update-message" name="Update Database" camunda:type="external" camunda:topic="update-message">
+        <bpmn:incoming>Flow_0jkcnhw</bpmn:incoming>
+        <bpmn:outgoing>Flow_1jv9jlc</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="insert-message" name="Insert Database" camunda:type="external" camunda:topic="insert-message">
+        <bpmn:incoming>Flow_1ar9rvn</bpmn:incoming>
+        <bpmn:outgoing>Flow_0wfcp47</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="handle-entry" name="Handle RSS Entry" camunda:type="external" camunda:topic="handle-item">
+        <bpmn:incoming>Flow_1vdn4m6</bpmn:incoming>
+        <bpmn:outgoing>Flow_1nhb7rw</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:startEvent id="Event_0s34jpu">
+        <bpmn:outgoing>Flow_1vdn4m6</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:sequenceFlow id="Flow_1vdn4m6" sourceRef="Event_0s34jpu" targetRef="handle-entry" />
+      <bpmn:boundaryEvent id="Event_00h4ay8" attachedToRef="handle-entry">
+        <bpmn:outgoing>Flow_0c6ynk6</bpmn:outgoing>
+        <bpmn:errorEventDefinition id="ErrorEventDefinition_1itdznj" />
+      </bpmn:boundaryEvent>
+      <bpmn:endEvent id="Event_0wo1dtv" name="Feierabend">
+        <bpmn:incoming>Flow_0c6ynk6</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_0c6ynk6" sourceRef="Event_00h4ay8" targetRef="Event_0wo1dtv" />
+      <bpmn:sequenceFlow id="Flow_0wfcp47" sourceRef="insert-message" targetRef="Activity_0c39ldp" />
+      <bpmn:sequenceFlow id="Flow_1jv9jlc" sourceRef="update-message" targetRef="Activity_0c39ldp" />
+      <bpmn:serviceTask id="Activity_0c39ldp" name="Update Tags" camunda:type="external" camunda:topic="update-tags">
+        <bpmn:incoming>Flow_0wfcp47</bpmn:incoming>
+        <bpmn:incoming>Flow_1jv9jlc</bpmn:incoming>
+        <bpmn:outgoing>Flow_0atjlqx</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:sequenceFlow id="Flow_0atjlqx" sourceRef="Activity_0c39ldp" targetRef="Event_0fd5osq" />
+    </bpmn:subProcess>
+    <bpmn:sequenceFlow id="Flow_0g2rxdt" sourceRef="load-feed" targetRef="handle-item-subprocess" />
+  </bpmn:process>
+  <bpmn:message id="Message_1l2mmvn" name="news-item" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="newsaggregator">
+      <bpmndi:BPMNEdge id="Flow_0g2rxdt_di" bpmnElement="Flow_0g2rxdt">
+        <di:waypoint x="410" y="260" />
+        <di:waypoint x="550" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="SequenceFlow_08va5r8_di" bpmnElement="SequenceFlow1">
+        <di:waypoint x="199" y="260" />
+        <di:waypoint x="310" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="337.5" y="110" width="90" height="20" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEventProcessStarted">
+        <dc:Bounds x="163" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="161" y="278" width="41" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_00gy3ka_di" bpmnElement="load-feed">
+        <dc:Bounds x="310" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_05l72m4_di" bpmnElement="handle-item-subprocess" isExpanded="true">
+        <dc:Bounds x="550" y="85" width="940" height="380" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1ge13k6_di" bpmnElement="Flow_1ge13k6">
+        <di:waypoint x="970" y="290" />
+        <di:waypoint x="970" y="360" />
+        <di:waypoint x="1242" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0jkcnhw_di" bpmnElement="Flow_0jkcnhw">
+        <di:waypoint x="995" y="265" />
+        <di:waypoint x="1060" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1ar9rvn_di" bpmnElement="Flow_1ar9rvn">
+        <di:waypoint x="970" y="240" />
+        <di:waypoint x="970" y="145" />
+        <di:waypoint x="1060" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1nhb7rw_di" bpmnElement="Flow_1nhb7rw">
+        <di:waypoint x="870" y="265" />
+        <di:waypoint x="945" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1vdn4m6_di" bpmnElement="Flow_1vdn4m6">
+        <di:waypoint x="618" y="265" />
+        <di:waypoint x="770" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0c6ynk6_di" bpmnElement="Flow_0c6ynk6">
+        <di:waypoint x="820" y="207" />
+        <di:waypoint x="820" y="140" />
+        <di:waypoint x="872" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0wfcp47_di" bpmnElement="Flow_0wfcp47">
+        <di:waypoint x="1160" y="145" />
+        <di:waypoint x="1185" y="145" />
+        <di:waypoint x="1185" y="200" />
+        <di:waypoint x="1230" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1jv9jlc_di" bpmnElement="Flow_1jv9jlc">
+        <di:waypoint x="1160" y="265" />
+        <di:waypoint x="1185" y="265" />
+        <di:waypoint x="1185" y="200" />
+        <di:waypoint x="1230" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0atjlqx_di" bpmnElement="Flow_0atjlqx">
+        <di:waypoint x="1330" y="200" />
+        <di:waypoint x="1362" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Gateway_1on0lu4_di" bpmnElement="Gateway_1on0lu4" isMarkerVisible="true">
+        <dc:Bounds x="945" y="240" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0ys7rkf_di" bpmnElement="update-message">
+        <dc:Bounds x="1060" y="225" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_15r8qib_di" bpmnElement="insert-message">
+        <dc:Bounds x="1060" y="105" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0b7s74j_di" bpmnElement="handle-entry">
+        <dc:Bounds x="770" y="225" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0s34jpu_di" bpmnElement="Event_0s34jpu">
+        <dc:Bounds x="582" y="247" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1bkc9ba_di" bpmnElement="Event_1bkc9ba">
+        <dc:Bounds x="1242" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1247" y="385" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0wo1dtv_di" bpmnElement="Event_0wo1dtv">
+        <dc:Bounds x="872" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="863" y="165" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0fd5osq_di" bpmnElement="Event_0fd5osq">
+        <dc:Bounds x="1362" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1367" y="225" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0b4qork_di" bpmnElement="Activity_0c39ldp">
+        <dc:Bounds x="1230" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_12ozqk9_di" bpmnElement="Event_00h4ay8">
+        <dc:Bounds x="802" y="207" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
