@@ -7,15 +7,19 @@ import java.net.UnknownHostException;
 public class MongoTest {
 
     public static void main(String[] args) throws UnknownHostException {
-        MongoClient client = new MongoClient(new MongoClientURI("monogdb://localhost:27017"));
+        
+        
+        MongoClient client = new MongoClient("127.0.0.1", 27017);
+        
         DB database = client.getDB("feeds");
-        DBCollection collection = database.getCollection("feeds");
-        DBObject entry = new BasicDBObject()
-                .append("id", "foobar");
+        DBCollection collection = database.getCollection("entries");
+        
+        var cursor = collection.find();
+        while (cursor.hasNext()) {
+            var item = cursor.next();
+            System.out.println(item.get("id_"));
+        }
 
-        collection.insert(entry);
-
-        System.out.println(entry.get("id_"));
 
     }
 

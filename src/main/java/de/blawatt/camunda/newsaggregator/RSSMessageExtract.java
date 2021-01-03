@@ -1,12 +1,9 @@
 package de.blawatt.camunda.newsaggregator;
 
-import java.util.HashMap;
 import java.util.logging.Logger;
 
-import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.delegate.DelegateExecution;
 import org.camunda.bpm.engine.delegate.JavaDelegate;
-import org.camunda.bpm.engine.runtime.MessageCorrelationResult;
 
 import de.blawatt.camunda.rss.Feed;
 import de.blawatt.camunda.rss.RSSFeedParser;

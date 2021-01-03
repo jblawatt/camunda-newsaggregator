@@ -1,40 +1,44 @@
 package de.blawatt.camunda.newsaggregator.services;
 
-import de.blawatt.camunda.rss.Feed;
+import de.blawatt.camunda.mongo.MongoCollectionProvider;
 import de.blawatt.camunda.rss.FeedMessage;
 import de.blawatt.camunda.rss.FeedMessageWrapper;
-import org.camunda.bpm.client.ExternalTaskClient;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 
-import java.sql.*;
-
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.UnknownHostException;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
+
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBCollection;
+import com.mongodb.DBObject;
+import static de.blawatt.camunda.mongo.MongoFeedSerializer.toUnixTimestamp;
 
 public class RSSMessageHandlerService extends AbstractServiceBase {
     public RSSMessageHandlerService() {
-        super("http://localhost:8080/engine-rest", "handle-item",  100000L);
+        super("http://localhost:8080/engine-rest", "handle-item", 100000L);
     }
 
-    public  FeedMessageWrapper createWrapper(FeedMessage message) throws SQLException, ClassNotFoundException {
-        var con = getConnection();
-        FeedMessageWrapper result = null;
-        PreparedStatement statement = con.prepareStatement("SELECT updated FROM feed_entries WHERE id = ?");
-        statement.setString(1, message.id);
-        ResultSet resultSet = statement.executeQuery();
-        if (!resultSet.next()) {
-            result = new FeedMessageWrapper(message, true, false);
+    public FeedMessageWrapper createWrapper(FeedMessage entry) throws UnknownHostException {
+        
+        DBCollection collection = MongoCollectionProvider.getCollection("entries");      
+        DBObject dbQueryObject = new BasicDBObject();
+        dbQueryObject.put("id", entry.id);
+        DBObject result = collection.findOne(dbQueryObject);
+        
+        if (result == null) {
+            return new FeedMessageWrapper(entry, true, false);
         } else {
-            String dbvalue = resultSet.getString("updated");
-            boolean isUpdated = !dbvalue.equals(message.updated);
-            result = new FeedMessageWrapper(message, false, isUpdated);
+            long dbvalue =  (long)result.get("updated");
+            long itemValue = toUnixTimestamp(entry.updated);
+            boolean isUpdated = dbvalue != itemValue;
+            return new FeedMessageWrapper(entry, false, isUpdated);
         }
-        resultSet.close();
-        con.close();
-
-        return result;
     }
 
     @Override
@@ -44,16 +48,19 @@ public class RSSMessageHandlerService extends AbstractServiceBase {
         FeedMessageWrapper entryWrapper = null;
         try {
              entryWrapper = createWrapper(entry);
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+        } catch (UnknownHostException e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            externalTaskService.handleFailure(externalTask, e.getMessage(), sw.toString(), 0, 0);
         }
-        Map<String, Object> variables = new HashMap<String, Object>();
-        variables.put("entryIsNew", entryWrapper.isNew());
-        variables.put("entryIsUpdated", entryWrapper.isUpdated());
-        variables.put("entryIsUnchanged", entryWrapper.isUnchanged());
-        externalTaskService.complete(externalTask, variables);
+        if (entryWrapper != null) {
+            Map<String, Object> variables = new HashMap<String, Object>();
+            variables.put("entryIsNew", entryWrapper.isNew());
+            variables.put("entryIsUpdated", entryWrapper.isUpdated());
+            variables.put("entryIsUnchanged", entryWrapper.isUnchanged());
+            externalTaskService.complete(externalTask, variables);
+        }
     }
 
     public static void main (String[] args) {

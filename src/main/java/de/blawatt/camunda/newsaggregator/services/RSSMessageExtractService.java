@@ -3,7 +3,6 @@ package de.blawatt.camunda.newsaggregator.services;
 
 import de.blawatt.camunda.rss.FeedMessage;
 import de.blawatt.camunda.rss.RSSFeedParser;
-import org.camunda.bpm.client.ExternalTaskClient;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 
@@ -12,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 
 public class RSSMessageExtractService extends AbstractServiceBase {
 

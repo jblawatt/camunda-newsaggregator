@@ -1,14 +1,17 @@
 package de.blawatt.camunda.newsaggregator.services;
 
-import de.blawatt.camunda.rss.Feed;
+import de.blawatt.camunda.mongo.MongoCollectionProvider;
+import de.blawatt.camunda.mongo.MongoFeedSerializer;
 import de.blawatt.camunda.rss.FeedMessage;
-import de.blawatt.camunda.rss.FeedMessageWrapper;
 import org.camunda.bpm.client.task.ExternalTask;
 import org.camunda.bpm.client.task.ExternalTaskService;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.UnknownHostException;
+
+import com.mongodb.DBCollection;
+import com.mongodb.DBObject;
 
 public class RSSInsertNewService extends AbstractServiceBase {
 
@@ -20,48 +23,22 @@ public class RSSInsertNewService extends AbstractServiceBase {
     protected void execute(ExternalTask externalTask, ExternalTaskService externalTaskService) {
         FeedMessage entry = (FeedMessage) externalTask.getVariable("entry");
 
-        Connection connection = null;
-        String statement = "INSERT INTO feed_entries(id, title, author, published, updated, summary, content) " +
-                                 "VALUES ( ?, ?, ?, ?, ?, ?, ? )";
-
+        DBCollection collection = null;
         try {
-            connection = getConnection();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            // FIXME: zentrale settings
+            collection = MongoCollectionProvider.getCollection("entries");
+        } catch (UnknownHostException e) {            
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            externalTaskService.handleFailure(externalTask, e.getMessage(), sw.toString(), 0, 0);
         }
 
-        PreparedStatement preparedStatement = null;
-
-        try {
-             preparedStatement = connection.prepareStatement(statement);
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
-        }
-
-        try {
-            preparedStatement.setString(1, entry.id);
-            preparedStatement.setString(2, entry.title);
-            preparedStatement.setString(3, entry.author);
-            preparedStatement.setString(4, entry.published);
-            preparedStatement.setString(5, entry.updated);
-            preparedStatement.setString(6, entry.summary);
-            preparedStatement.setString(7, entry.content);
-//            preparedStatement.setString(8, entry.source);
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
-        }
-
-        try {
-            preparedStatement.execute();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
-        }
-
-        LOGGER.info(String.format("Inserted Entry %s", entry.id));
-
-        externalTaskService.complete(externalTask);
+        if (collection != null) {            
+            DBObject dbObject = MongoFeedSerializer.serialize(entry);
+            collection.insert(dbObject);
+            externalTaskService.complete(externalTask);
+        } 
 
     }
 }
